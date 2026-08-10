@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wheel of Properties - Angle Practice</title>
+    <style>
+        /* --- RESET & LAYOUT --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f4f8; overflow: hidden; display: flex; flex-direction: column; height: 100vh; touch-action: none; }
+        
+        /* --- HEADER & PROGRESS --- */
+        #header { background: #2c3e50; color: white; padding: 10px 15px; text-align: center; display: flex; justify-content: space-between; align-items: center; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #rank-badge { font-size: 1.2rem; font-weight: bold; padding: 5px 15px; border-radius: 20px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        #progress-bar-container { width: 30%; background: #34495e; border-radius: 10px; height: 20px; overflow: hidden; border: 2px solid #bdc3c7; }
+        #progress-bar { width: 0%; height: 100%; background: #2ecc71; transition: width 0.3s; }
+
+        /* --- SCREENS --- */
+        #screen-wheel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+        #screen-question { flex: 1; display: none; flex-direction: row; width: 100%; height: 100%; padding: 10px; gap: 15px; }
+        
+        #left-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        #right-col { width: 320px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid #bdc3c7; }
+
+        /* --- WHEEL CANVAS --- */
+        #wheel-wrapper { position: relative; width: 350px; height: 350px; }
+        #wheelCanvas { width: 100%; height: 100%; border-radius: 50%; border: 5px solid #2c3e50; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: transform 3s cubic-bezier(0.25, 0.1, 0.15, 1); }
+        #wheel-pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid #e74c3c; z-index: 10; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); }
+        #spin-btn { margin-top: 30px; padding: 15px 50px; font-size: 1.5rem; background: #e74c3c; color: white; border: none; border-radius: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        #spin-btn:active { background: #c0392b; transform: translateY(2px); box-shadow: 0 2px 2px rgba(0,0,0,0.2); }
+
+        /* --- QUESTION & CANVAS SECTION --- */
+        #question-header-area { background: white; padding: 10px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 2px solid #bdc3c7; }
+        #question-text-area { font-size: 1.4rem; font-weight: bold; text-align: center; color: #2c3e50; }
+        #feedback-area { font-size: 1.1rem; text-align: center; font-weight: bold; min-height: 25px; color: #e74c3c; margin-top: 5px; }
+
+        #canvas-wrapper { flex: 1; position: relative; width: 100%; border: 3px solid #7f8c8d; border-radius: 10px; background: white; overflow: hidden; touch-action: none; }
+        #diagramCanvas, #drawingCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
+        #drawingCanvas { z-index: 5; }
+        
+        #annotation-tools { position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
+        .tool-btn { width: 50px; height: 50px; border: 2px solid #2c3e50; border-radius: 25px; background: white; color: #2c3e50; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-size: 0.9rem; }
+        .tool-btn.active { background: #e74c3c; color: white; border-color: #c0392b; }
+
+        /* --- KEYBOARD --- */
+        #input-display { width: 100%; margin-bottom: 15px; padding: 10px; font-size: 2rem; text-align: center; border: 3px solid #34495e; border-radius: 10px; background: #ecf0f1; min-height: 60px; color: #2c3e50; font-weight: bold; }
+        #keyboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+        .key { padding: 15px 5px; font-size: 1.8rem; background: #ecf0f1; border: 2px solid #bdc3c7; border-radius: 10px; cursor: pointer; display: flex; justify-content: center; align-items: center; min-height: 65px; color: #2c3e50; font-weight: bold; box-shadow: 0 4px 0 #bdc3c7; }
+        .key:active { background: #bdc3c7; transform: translateY(4px); box-shadow: none; }
+        .key.action { background: #95a5a6; color: white; border-color: #7f8c8d; box-shadow: 0 4px 0 #7f8c8d; font-size: 1.4rem; }
+        .key.submit { background: #2ecc71; color: white; border-color: #27ae60; grid-column: span 3; box-shadow: 0 4px 0 #27ae60; }
+        
+        #mcq-keyboard { display: none; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+        .mcq-btn { padding: 10px; font-size: 1.4rem; background: #3498db; color: white; border: none; border-radius: 10px; font-weight: bold; min-height: 80px; box-shadow: 0 4px 0 #2980b9; }
+
+        #btn-return { display: none; padding: 15px; font-size: 1.2rem; background: #f39c12; color: white; border: none; border-radius: 10px; font-weight: bold; width: 100%; margin-top: 15px; box-shadow: 0 4px 0 #d68910; cursor: pointer; }
+
+        /* --- POPUPS & CERTIFICATE --- */
+        #popup-overlay, #cert-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; }
+        #popup-content, #cert-content { background: white; padding: 30px; border-radius: 20px; text-align: center; border: 5px solid #f1c40f; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 600px; width: 90%; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        
+        #student-name-input { width: 100%; padding: 15px; font-size: 1.2rem; margin: 15px 0; border: 2px solid #bdc3c7; border-radius: 10px; text-align: center; user-select: auto; -webkit-user-select: auto; }
+        .popup-btn { padding: 10px 30px; font-size: 1.2rem; background: #3498db; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin: 5px; box-shadow: 0 4px 0 #2980b9; text-decoration: none; display: inline-block; }
+        .popup-btn:active { transform: translateY(4px); box-shadow: none; }
+
+        #rendered-cert { width: 100%; border: 2px solid #34495e; border-radius: 5px; margin-bottom: 15px; }
+        .math-expr { font-family: 'Cambria', 'Times New Roman', serif; }
+        .math-expr i { font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div id="rank-badge">Belt: White 🥋</div>
+        <div id="progress-bar-container">
+            <div id="progress-bar"></div>
+        </div>
+        <div style="font-weight:bold;">Correct: <span id="exp-display">0</span></div>
+    </div>
+
+    <div id="popup-overlay">
+        <div id="popup-content">
+            <h2 style="font-size: 2rem; color: #2c3e50; margin-bottom: 10px;">Rank Up! 🎉</h2>
+            <p id="popup-text">Congratulations! You earned a new belt!</p>
+            <div id="popup-belt" style="font-size: 1.5rem; font-weight: bold; padding: 10px 20px; border-radius: 10px; display: inline-block; margin: 15px 0;">New Belt</div>
+            <br>
+            <button class="popup-btn" id="popup-btn-close">Awesome!</button>
+        </div>
+    </div>
+
+    <div id="cert-overlay">
+        <div id="cert-content">
+            <div id="cert-step-1">
+                <h2 style="font-size: 2rem; color: #f39c12;">Master of Geometry! 🏆</h2>
+                <p>You have conquered the final challenge. Enter your name for your certificate!</p>
+                <input type="text" id="student-name-input" placeholder="Your Name">
+                <button class="popup-btn" id="generate-cert-btn">Generate Certificate</button>
+            </div>
+            <div id="cert-step-2" style="display:none;">
+                <canvas id="certCanvas" width="800" height="600" style="display:none;"></canvas>
+                <img id="rendered-cert" src="" alt="Certificate">
+                <br>
+                <a class="popup-btn" id="download-cert" href="#" download="Master_of_Geometry.png">Download Image</a>
+                <a class="popup-btn" id="email-cert" href="#">Email Status</a>
+                <button class="popup-btn" style="background:#e74c3c; box-shadow: 0 4px 0 #c0392b;" onclick="document.getElementById('cert-overlay').style.display='none';">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-wheel">
+        <div id="wheel-wrapper">
+            <div id="wheel-pointer"></div>
+            <canvas id="wheelCanvas" width="700" height="700"></canvas>
+        </div>
+        <button id="spin-btn">SPIN WHEEL</button>
+    </div>
+
+    <div id="screen-question">
+        <div id="left-col">
+            <div id="question-header-area">
+                <div id="question-text-area" class="math-expr"></div>
+                <div id="feedback-area" class="math-expr"></div>
+            </div>
+            <div id="canvas-wrapper">
+                <canvas id="diagramCanvas"></canvas>
+                <canvas id="drawingCanvas"></canvas>
+                <div id="annotation-tools">
+                    <button class="tool-btn active" id="btn-pen">Pen</button>
+                    <button class="tool-btn" id="btn-erase">Erase</button>
+                </div>
+            </div>
+        </div>
+        <div id="right-col">
+            <div id="input-display">?</div>
+            <div id="keyboard">
+                <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+                <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+                <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+                <div class="key action" id="btn-clr">Clr</div><div class="key">0</div><div class="key action" id="btn-del">Del</div>
+                <div class="key submit" id="btn-submit">Submit Answer</div>
+            </div>
+            <div id="mcq-keyboard">
+                <button class="mcq-btn" data-val="Acute">Acute</button>
+                <button class="mcq-btn" data-val="Right">Right</button>
+                <button class="mcq-btn" data-val="Obtuse">Obtuse</button>
+                <button class="mcq-btn" data-val="Reflex">Reflex</button>
+            </div>
+            <button id="btn-return">Next Spin ➔</button>
+        </div>
+    </div>
+
+<script>
+    // --- GAME DATA ---
+    let basicTopics = [
+        { name: "Types of Angles", color: "#1abc9c" }, { name: "Straight Line", color: "#2ecc71" },
+        { name: "At a Point", color: "#3498db" }, { name: "Alternate", color: "#9b59b6" },
+        { name: "Corresponding", color: "#f1c40f" }, { name: "Interior", color: "#e67e22" },
+        { name: "Triangle", color: "#e74c3c" }, { name: "Vert. Opposite", color: "#e84393" },
+        { name: "Quadrilateral", color: "#34495e" }
+    ];
+    let challengeTopics = [
+        { name: "Challenge 1", color: "#8e44ad" }, { name: "Challenge 2", color: "#2c3e50" },
+        { name: "Challenge 3", color: "#c0392b" }, { name: "Challenge 4", color: "#d35400" },
+        { name: "Challenge 5", color: "#16a085" }, { name: "Challenge 6", color: "#27ae60" },
+        { name: "Challenge 7", color: "#2980b9" }, { name: "Challenge 8", color: "#34495e" }
+    ];
+    let activeTopics = basicTopics;
+    let isBlackBeltMode = false;
+
+    const belts = [
+        { name: "White 🥋", bg: "#ecf0f1", text: "#2c3e50" }, { name: "Yellow 🥋", bg: "#f1c40f", text: "#2c3e50" },
+        { name: "Green 🥋", bg: "#2ecc71", text: "#ffffff" }, { name: "Blue 🥋", bg: "#3498db", text: "#ffffff" },
+        { name: "Brown 🥋", bg: "#e67e22", text: "#ffffff" }, { name: "Black 🥋", bg: "#2c3e50", text: "#f1c40f" },
+        { name: "Master 🌟", bg: "#f39c12", text: "#ffffff" }
+    ];
+
+    let correctCount = 0, currentRankIndex = 0, currentAnswer = "", isMCQ = false, attempts = 0, workingSteps = "";
+
+    function updateBeltUI() {
+        document.getElementById('exp-display').innerText = correctCount;
+        let newRankIndex = Math.floor(correctCount / 5);
+        if (newRankIndex >= belts.length) newRankIndex = belts.length - 1; 
+        let progressInTier = correctCount % 5;
+        if (newRankIndex === belts.length - 1 && correctCount >= 30) progressInTier = 5; 
+        document.getElementById('progress-bar').style.width = (progressInTier * 20) + '%';
+
+        if (newRankIndex > currentRankIndex) {
+            currentRankIndex = newRankIndex;
+            if (newRankIndex === 5 && !isBlackBeltMode) { 
+                isBlackBeltMode = true; activeTopics = challengeTopics; drawWheel();
+                showPopup(belts[currentRankIndex], "The wheel has evolved! Get ready for Multi-Step challenges.");
+            } else if (correctCount === 30) { 
+                document.getElementById('cert-overlay').style.display = 'flex';
+                document.getElementById('cert-step-1').style.display = 'block';
+                document.getElementById('cert-step-2').style.display = 'none';
+            } else { showPopup(belts[currentRankIndex], "Congratulations! You earned a new belt!"); }
+        }
+        
+        const badge = document.getElementById('rank-badge');
+        badge.innerText = "Belt: " + belts[currentRankIndex].name;
+        badge.style.backgroundColor = belts[currentRankIndex].bg;
+        badge.style.color = belts[currentRankIndex].text;
+    }
+
+    function showPopup(beltData, msg) {
+        document.getElementById('popup-text').innerText = msg;
+        document.getElementById('popup-belt').innerText = beltData.name;
+        document.getElementById('popup-belt').style.backgroundColor = beltData.bg;
+        document.getElementById('popup-belt').style.color = beltData.text;
+        document.getElementById('popup-overlay').style.display = 'flex';
+    }
+    document.getElementById('popup-btn-close').addEventListener('click', () => { document.getElementById('popup-overlay').style.display = 'none'; });
+    updateBeltUI();
+
+    function drawWheel() {
+        const canvas = document.getElementById('wheelCanvas'); const ctx = canvas.getContext('2d');
+        const cx = canvas.width / 2, cy = canvas.height / 2, radius = cx;
+        const sliceAngle = (2 * Math.PI) / activeTopics.length;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < activeTopics.length; i++) {
+            const startAngle = i * sliceAngle, endAngle = startAngle + sliceAngle;
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, radius, startAngle, endAngle); ctx.closePath();
+            ctx.fillStyle = activeTopics[i].color; ctx.fill();
+            ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 4; ctx.stroke();
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(startAngle + sliceAngle / 2);
+            ctx.textAlign = "right"; ctx.fillStyle = "white"; ctx.font = "bold 32px Arial"; 
+            ctx.fillText(activeTopics[i].name, radius - 30, 10); ctx.restore();
+        }
+    }
+    drawWheel();
+
+    const spinBtn = document.getElementById('spin-btn');
+    let currentRotation = 0;
+    spinBtn.addEventListener('click', () => {
+        spinBtn.disabled = true; currentRotation += (360 * 4) + Math.floor(Math.random() * 360); 
+        document.getElementById('wheelCanvas').style.transform = `rotate(${currentRotation}deg)`;
+        setTimeout(() => {
+            spinBtn.disabled = false;
+            let actualDegree = currentRotation % 360; let sliceDegree = 360 / activeTopics.length;
+            let selectedIndex = Math.floor(((360 - actualDegree + 270) % 360) / sliceDegree);
+            prepareQuestionScreen(activeTopics[selectedIndex].name);
+        }, 3000); 
+    });
+
+    // --- MATH & GEOMETRY TOOLS ---
+    function rot(p, cx, cy, angle) {
+        let s = Math.sin(angle), c = Math.cos(angle);
+        let nx = p.x - cx, ny = p.y - cy;
+        return { x: nx * c - ny * s + cx, y: nx * s + ny * c + cy };
+    }
+
+    function drawAngleLabel(ctx, v, pStart, pEnd, text, radius = 25, isReflex = false) {
+        if (!text && text !== ' ') return;
+        let a1 = Math.atan2(pStart.y - v.y, pStart.x - v.x);
+        let a2 = Math.atan2(pEnd.y - v.y, pEnd.x - v.x);
+        if (a1 < 0) a1 += 2 * Math.PI; if (a2 < 0) a2 += 2 * Math.PI;
+        let diff = a2 - a1; if (diff < 0) diff += 2 * Math.PI;
+        
+        let start = a1, arcDiff = diff;
+        
+        if (isReflex && arcDiff <= Math.PI) { start = a2; arcDiff = 2 * Math.PI - arcDiff; } 
+        else if (!isReflex && arcDiff > Math.PI) { start = a2; arcDiff = 2 * Math.PI - arcDiff; }
+
+        let isX = text && text.includes('x');
+
+        ctx.save();
+        if (isX) {
+            ctx.strokeStyle = "#e74c3c"; // Render target variable arc in bold red
+            ctx.lineWidth = 4;           
+        }
+        ctx.beginPath(); ctx.arc(v.x, v.y, radius, start, start + arcDiff); ctx.stroke();
+        ctx.restore();
+
+        if (text.trim() === '') return;
+        
+        let bisect = start + arcDiff / 2;
+        let tx = v.x + Math.cos(bisect) * (radius + 20); let ty = v.y + Math.sin(bisect) * (radius + 20);
+        ctx.save(); ctx.font = "bold 18px 'Cambria Math', serif";
+        let tw = ctx.measureText(text).width;
+        ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.fillRect(tx - tw/2 - 2, ty - 10, tw + 4, 20);
+        
+        ctx.fillStyle = isX ? "#e74c3c" : "#2c3e50"; 
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(text, tx, ty); ctx.restore();
+    }
+
+    function getInteriorAngle(vCenter, vLeft, vRight) {
+        let aL = Math.atan2(vLeft.y - vCenter.y, vLeft.x - vCenter.x);
+        let aR = Math.atan2(vRight.y - vCenter.y, vRight.x - vCenter.x);
+        let diff = aL - aR; if (diff < 0) diff += 2 * Math.PI;
+        if (diff > Math.PI) diff = 2 * Math.PI - diff; 
+        return Math.round(diff * 180 / Math.PI);
+    }
+
+    function drawLine(ctx, p1, p2) { ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
+    
+    function drawParallelMark(ctx, p, angle) { 
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(angle);
+        ctx.beginPath(); ctx.moveTo(-10, -8); ctx.lineTo(8, 0); ctx.lineTo(-10, 8); 
+        ctx.fillStyle = ctx.strokeStyle; ctx.fill(); ctx.restore();
+    }
+    
+    function drawTickMark(ctx, p, angle) { 
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(angle);
+        ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 8); ctx.stroke(); ctx.restore();
+    }
+
+    function drawRightAngle(ctx, v, p1, p2, size = 20) {
+        let a1 = Math.atan2(p1.y - v.y, p1.x - v.x); let a2 = Math.atan2(p2.y - v.y, p2.x - v.x);
+        let u1x = Math.cos(a1), u1y = Math.sin(a1); let u2x = Math.cos(a2), u2y = Math.sin(a2);
+        ctx.beginPath(); ctx.moveTo(v.x + size * u1x, v.y + size * u1y); ctx.lineTo(v.x + size * (u1x + u2x), v.y + size * (u1y + u2y)); ctx.lineTo(v.x + size * u2x, v.y + size * u2y); ctx.stroke();
+    }
+
+    // --- ENGINE ---
+    const diagramCanvas = document.getElementById('diagramCanvas'); const dCtx = diagramCanvas.getContext('2d');
+    const drawCanvas = document.getElementById('drawingCanvas');
+
+    function prepareQuestionScreen(topic) {
+        document.getElementById('screen-wheel').style.display = 'none'; document.getElementById('screen-question').style.display = 'flex';
+        document.getElementById('btn-return').style.display = 'none';
+        setTimeout(() => { resizeCanvases(); generateQuestion(topic); }, 50);
+    }
+
+    function resizeCanvases() {
+        const wrapper = document.getElementById('canvas-wrapper');
+        diagramCanvas.width = wrapper.clientWidth; diagramCanvas.height = wrapper.clientHeight;
+        drawCanvas.width = wrapper.clientWidth; drawCanvas.height = wrapper.clientHeight;
+    }
+    window.addEventListener('resize', () => { if (document.getElementById('screen-question').style.display === 'flex') { resizeCanvases(); if(window.currentTopicName) generateQuestion(window.currentTopicName, true); }});
+
+    function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+    function generateQuestion(topic, isResize = false) {
+        if(!isResize) {
+            attempts = 0; document.getElementById('input-display').innerText = '?';
+            document.getElementById('feedback-area').innerHTML = '';
+            drawCanvas.getContext('2d').clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+            window.currentTopicName = topic;
+            window.tiltAngle = isBlackBeltMode ? rand(-20, 20) * Math.PI / 180 : rand(-30, 30) * Math.PI / 180;
+        }
+
+        const cx = diagramCanvas.width / 2, cy = diagramCanvas.height / 2;
+        dCtx.clearRect(0, 0, diagramCanvas.width, diagramCanvas.height);
+        dCtx.lineWidth = 3; dCtx.strokeStyle = "#2c3e50"; dCtx.fillStyle = "#2c3e50";
+
+        document.getElementById('question-text-area').innerHTML = `Find the value of <i>x</i>.`;
+        document.getElementById('keyboard').style.display = (topic === "Types of Angles") ? 'none' : 'grid';
+        document.getElementById('mcq-keyboard').style.display = (topic === "Types of Angles") ? 'grid' : 'none';
+        isMCQ = (topic === "Types of Angles");
+
+        let tilt = window.tiltAngle; 
+
+        // ----------------------------------------------------
+        // BLACK BELT MULTI-STEP GENERATOR (8 TYPES)
+        // ----------------------------------------------------
+        if (isBlackBeltMode) {
+            if(!isResize) { window.multiType = rand(1, 8); }
+            let mT = window.multiType;
+
+            if (mT === 1) { 
+                if(!isResize) {
+                    window.ms1_A = rand(40, 80); window.ms1_B = rand(40, 80); window.ms1_ext = window.ms1_A + window.ms1_B;
+                    window.ms1_lbls = [window.ms1_A+'°', window.ms1_B+'°', 'x°']; currentAnswer = window.ms1_ext.toString();
+                    workingSteps = `Ext angle = Sum of interior opposite angles <br> x = ${window.ms1_A}° + ${window.ms1_B}° = ${currentAnswer}°`;
+                }
+                let L = 200; let rA = window.ms1_A * Math.PI/180, rB = window.ms1_B * Math.PI/180;
+                let VA = rot({x:cx-100, y:cy+60}, cx, cy, tilt), VB = rot({x:cx-100+L, y:cy+60}, cx, cy, tilt), VD = rot({x:cx-100+L+80, y:cy+60}, cx, cy, tilt);
+                let sideB = L * Math.sin(rB) / Math.sin(Math.PI - rA - rB); let VC = rot({x: cx-100 + sideB*Math.cos(rA), y: cy+60 - sideB*Math.sin(rA)}, cx, cy, tilt);
+                drawLine(dCtx, VA, VD); drawLine(dCtx, VA, VC); drawLine(dCtx, VC, VB);
+                drawAngleLabel(dCtx, VC, VB, VA, window.ms1_lbls[0], 25, false); drawAngleLabel(dCtx, VA, VC, VB, window.ms1_lbls[1], 25, false); drawAngleLabel(dCtx, VB, VD, VC, window.ms1_lbls[2], 25, false);
+            } 
+            else if (mT === 2) { 
+                if(!isResize) {
+                    let A = rand(30, 60), B = rand(30, 60); window.ms2_A = A; window.ms2_B = B;
+                    window.ms2_lbls = [A+'°', B+'°', 'x°']; currentAnswer = (A + B).toString();
+                    workingSteps = `Draw 3rd parallel line.<br> x = ${A}° + ${B}° = ${currentAnswer}°`;
+                }
+                let dist = 140;
+                let TL = rot({x:cx-140,y:cy-dist/2},cx,cy,tilt), TR = rot({x:cx+140,y:cy-dist/2},cx,cy,tilt);
+                let BL = rot({x:cx-140,y:cy+dist/2},cx,cy,tilt), BR = rot({x:cx+140,y:cy+dist/2},cx,cy,tilt);
+                let rA = window.ms2_A * Math.PI/180, rB = window.ms2_B * Math.PI/180;
+                let M_x = cx - 40; let M_y = cy; 
+                let pTop = {x: M_x + (dist/2)*Math.tan(Math.PI/2 - rA), y: cy-dist/2}; let pBot = {x: M_x + (dist/2)*Math.tan(Math.PI/2 - rB), y: cy+dist/2};
+                let M = rot({x:M_x, y:M_y},cx,cy,tilt), pTRot = rot(pTop, cx, cy, tilt), pBRot = rot(pBot, cx, cy, tilt);
+                drawLine(dCtx, TL, TR); drawLine(dCtx, BL, BR); drawLine(dCtx, pTRot, M); drawLine(dCtx, M, pBRot);
+                let angTop = Math.atan2(TR.y - TL.y, TR.x - TL.x); let angBot = Math.atan2(BR.y - BL.y, BR.x - BL.x);
+                drawParallelMark(dCtx, rot({x:cx-100,y:cy-dist/2},cx,cy,tilt), angTop); drawParallelMark(dCtx, rot({x:cx-100,y:cy+dist/2},cx,cy,tilt), angBot);
+                drawAngleLabel(dCtx, pTRot, M, TL, window.ms2_lbls[0], 30, false); drawAngleLabel(dCtx, pBRot, BL, M, window.ms2_lbls[1], 30, false); drawAngleLabel(dCtx, M, pTRot, pBRot, window.ms2_lbls[2], 25, false);
+            }
+            else if (mT === 3) { 
+                if(!isResize) {
+                    window.ms3_base = rand(40, 70); let top = 180 - (window.ms3_base*2); let ext = 180 - window.ms3_base;
+                    window.ms3_lbls = [ext+'°', 'x°']; currentAnswer = top.toString();
+                    workingSteps = `Interior base = 180° - ${ext}° = ${window.ms3_base}°. <br> x = 180° - 2(${window.ms3_base}°) = ${currentAnswer}°`;
+                }
+                let L = 200; let rBase = window.ms3_base * Math.PI/180; let side = (L/2) / Math.cos(rBase);
+                let VA = rot({x:cx-L/2, y:cy+60},cx,cy,tilt), VB = rot({x:cx+L/2, y:cy+60},cx,cy,tilt);
+                let VC = rot({x:cx, y:cy+60 - side*Math.sin(rBase)},cx,cy,tilt), VD = rot({x:cx-L/2-100, y:cy+60},cx,cy,tilt);
+                drawLine(dCtx, VD, VB); drawLine(dCtx, VA, VC); drawLine(dCtx, VB, VC);
+                drawTickMark(dCtx, rot({x:cx-L/4,y:cy+60-(side/2)*Math.sin(rBase)},cx,cy,tilt), Math.atan2(VC.y - VA.y, VC.x - VA.x)); 
+                drawTickMark(dCtx, rot({x:cx+L/4,y:cy+60-(side/2)*Math.sin(rBase)},cx,cy,tilt), Math.atan2(VC.y - VB.y, VC.x - VB.x));
+                drawAngleLabel(dCtx, VA, VC, VD, window.ms3_lbls[0], 25, false); drawAngleLabel(dCtx, VC, VB, VA, window.ms3_lbls[1], 25, false);
+            }
+            else if (mT === 4) { 
+                if(!isResize) {
+                    let a1 = rand(40, 70), a2 = rand(40, 70); let topA = 180 - a1 - a2;
+                    window.ms4_lbls = [a1+'°', a2+'°', 'x°']; currentAnswer = topA.toString();
+                    workingSteps = `Alternate angle = ${a1}°. <br> x = 180° - ${a1}° - ${a2}° = ${currentAnswer}°`;
+                    window.ms4_rad1 = a1; window.ms4_rad2 = a2;
+                }
+                let dist = 140; let TL = rot({x:cx-160,y:cy-dist/2},cx,cy,tilt), TR = rot({x:cx+160,y:cy-dist/2},cx,cy,tilt);
+                let BL = rot({x:cx-160,y:cy+dist/2},cx,cy,tilt), BR = rot({x:cx+160,y:cy+dist/2},cx,cy,tilt);
+                let VTop = rot({x:cx, y:cy-dist/2}, cx, cy, tilt);
+                let dx1 = dist / Math.tan(window.ms4_rad1 * Math.PI/180); let dx2 = dist / Math.tan(window.ms4_rad2 * Math.PI/180);
+                let VBL = rot({x:cx - dx1, y:cy+dist/2}, cx, cy, tilt); let VBR = rot({x:cx + dx2, y:cy+dist/2}, cx, cy, tilt);
+                drawLine(dCtx, TL, TR); drawLine(dCtx, BL, BR); drawLine(dCtx, VTop, VBL); drawLine(dCtx, VTop, VBR);
+                
+                let angTop = Math.atan2(TR.y - TL.y, TR.x - TL.x); let angBot = Math.atan2(BR.y - BL.y, BR.x - BL.x);
+                drawParallelMark(dCtx, rot({x:cx-120,y:cy-dist/2},cx,cy,tilt), angTop); 
+                drawParallelMark(dCtx, rot({x:cx-120,y:cy+dist/2},cx,cy,tilt), angBot);
+                
+                drawAngleLabel(dCtx, VTop, VBL, TL, window.ms4_lbls[0], 35, false); // Outside Alternate
+                drawAngleLabel(dCtx, VBR, VTop, VBL, window.ms4_lbls[1], 25, false); // Inside Right
+                drawAngleLabel(dCtx, VTop, VBR, VBL, window.ms4_lbls[2], 25, false); // Top x
+            }
+            else if (mT === 5) { 
+                if(!isResize) {
+                    let a = rand(40, 70); let remaining = 180 - a;
+                    window.ms5_lbls = [a+'°', 'x°']; currentAnswer = remaining.toString();
+                    workingSteps = `Vertically opp = ${a}°. Angles on straight line: x = 180° - ${a}° = ${currentAnswer}°`;
+                    window.ms5_rad = a * Math.PI/180;
+                }
+                let V = {x:cx, y:cy}; let rA = window.ms5_rad;
+                let P1 = rot({x:cx-150, y:cy}, cx, cy, tilt), P2 = rot({x:cx+150, y:cy}, cx, cy, tilt);
+                let P3 = rot({x:cx+150*Math.cos(rA), y:cy-150*Math.sin(rA)}, cx, cy, tilt);
+                let P4 = rot({x:cx-150*Math.cos(rA), y:cy+150*Math.sin(rA)}, cx, cy, tilt);
+                let P5 = rot({x:cx, y:cy-120}, cx, cy, tilt); 
+                drawLine(dCtx, P1, P2); drawLine(dCtx, P3, P4); drawLine(dCtx, V, P5);
+                drawRightAngle(dCtx, V, P2, P5, 20);
+                drawAngleLabel(dCtx, V, P4, P1, window.ms5_lbls[0], 35, false); drawAngleLabel(dCtx, V, P2, P4, window.ms5_lbls[1], 35, false);
+            }
+            else if (mT === 6) { 
+                if(!isResize) {
+                    let a = rand(50, 80); let obt = 180 - a;
+                    window.ms6_lbls = [obt+'°', 'x°']; currentAnswer = a.toString();
+                    workingSteps = `Opposite angle = ${obt}°. x = 180° - ${obt}° = ${currentAnswer}°`;
+                    window.ms6_rad = a * Math.PI/180;
+                }
+                let L = 160, H = 100; let dx = H / Math.tan(window.ms6_rad);
+                let V1 = rot({x:cx-L/2, y:cy+H/2}, cx,cy,tilt), V2 = rot({x:cx+L/2+60, y:cy+H/2}, cx,cy,tilt); 
+                let V3 = rot({x:cx+L/2, y:cy+H/2}, cx,cy,tilt); 
+                let V4 = rot({x:cx+L/2-dx, y:cy-H/2}, cx,cy,tilt), V5 = rot({x:cx-L/2-dx, y:cy-H/2}, cx,cy,tilt);
+                drawLine(dCtx, V1, V2); drawLine(dCtx, V3, V4); drawLine(dCtx, V4, V5); drawLine(dCtx, V5, V1);
+                
+                let angTop = Math.atan2(V4.y - V5.y, V4.x - V5.x);
+                let angBot = Math.atan2(V2.y - V1.y, V2.x - V1.x);
+                drawParallelMark(dCtx, rot({x:cx, y:cy-H/2}, cx,cy,tilt), angTop);
+                drawParallelMark(dCtx, rot({x:cx, y:cy+H/2}, cx,cy,tilt), angBot);
+                
+                drawAngleLabel(dCtx, V5, V1, V4, window.ms6_lbls[0], 30, false); drawAngleLabel(dCtx, V3, V2, V4, window.ms6_lbls[1], 25, false);
+            }
+            else if (mT === 7) { 
+                if(!isResize) {
+                    window.ms7_lbls = ['x°']; currentAnswer = "150";
+                    workingSteps = `Square = 90°, Equilateral = 60°. x = 90° + 60° = 150°`;
+                }
+                let L = 100; let half = L/2;
+                let V1 = rot({x:cx-half, y:cy}, cx,cy,tilt), V2 = rot({x:cx+half, y:cy}, cx,cy,tilt);
+                let V3 = rot({x:cx+half, y:cy+L}, cx,cy,tilt), V4 = rot({x:cx-half, y:cy+L}, cx,cy,tilt); 
+                let hTri = L * Math.sqrt(3)/2; let V5 = rot({x:cx, y:cy-hTri}, cx,cy,tilt); 
+                drawLine(dCtx, V1, V2); drawLine(dCtx, V2, V3); drawLine(dCtx, V3, V4); drawLine(dCtx, V4, V1);
+                drawLine(dCtx, V1, V5); drawLine(dCtx, V5, V2);
+                drawTickMark(dCtx, rot({x:cx-half/2, y:cy-hTri/2}, cx,cy,tilt), Math.atan2(V5.y-V1.y, V5.x-V1.x));
+                drawTickMark(dCtx, rot({x:cx+half/2, y:cy-hTri/2}, cx,cy,tilt), Math.atan2(V5.y-V2.y, V5.x-V2.x));
+                drawTickMark(dCtx, rot({x:cx, y:cy}, cx,cy,tilt), tilt); drawTickMark(dCtx, rot({x:cx+half, y:cy+half}, cx,cy,tilt), tilt+Math.PI/2);
+                drawAngleLabel(dCtx, V2, V3, V5, window.ms7_lbls[0], 35, false); 
+            }
+            else if (mT === 8) { 
+                if(!isResize) {
+                    let a = rand(30, 60); let c = 90 - a; let ext = 180 - c;
+                    window.ms8_lbls = [a+'°', 'x°']; currentAnswer = ext.toString();
+                    workingSteps = `Interior angle = 90° - ${a}° = ${c}°. <br> x = 180° - ${c}° = ${currentAnswer}°`;
+                    window.ms8_rad = a * Math.PI/180;
+                }
+                let H = 140; let L = H / Math.tan(window.ms8_rad);
+                let V1 = rot({x:cx-L/2, y:cy+H/2}, cx,cy,tilt), V2 = rot({x:cx+L/2, y:cy+H/2}, cx,cy,tilt); 
+                let V3 = rot({x:cx+L/2, y:cy-H/2}, cx,cy,tilt); 
+                let extL = 80; let V4 = rot({x:cx-L/2 - extL*Math.cos(window.ms8_rad), y:cy+H/2 + extL*Math.sin(window.ms8_rad)}, cx,cy,tilt); 
+                drawLine(dCtx, V1, V2); drawLine(dCtx, V2, V3); drawLine(dCtx, V4, V3);
+                drawRightAngle(dCtx, V2, V1, V3, 20);
+                drawAngleLabel(dCtx, V3, V2, V1, window.ms8_lbls[0], 30, false); drawAngleLabel(dCtx, V1, V2, V4, window.ms8_lbls[1], 25, false);
+            }
+            return;
+        }
+
+        // ----------------------------------------------------
+        // NORMAL GENERATORS
+        // ----------------------------------------------------
+        if (topic === "Quadrilateral") {
+            if(!isResize) {
+                let R = 130;
+                let a1 = rand(20, 70), a2 = rand(110, 160), a3 = rand(200, 250), a4 = rand(290, 340);
+                window.q_pts = [
+                    {x: cx+R*Math.cos(a1*Math.PI/180), y: cy+R*Math.sin(a1*Math.PI/180)},
+                    {x: cx+R*Math.cos(a2*Math.PI/180), y: cy+R*Math.sin(a2*Math.PI/180)},
+                    {x: cx+R*Math.cos(a3*Math.PI/180), y: cy+R*Math.sin(a3*Math.PI/180)},
+                    {x: cx+R*Math.cos(a4*Math.PI/180), y: cy+R*Math.sin(a4*Math.PI/180)}
+                ];
+                let intA = getInteriorAngle(window.q_pts[0], window.q_pts[3], window.q_pts[1]);
+                let intB = getInteriorAngle(window.q_pts[1], window.q_pts[0], window.q_pts[2]);
+                let intC = getInteriorAngle(window.q_pts[2], window.q_pts[1], window.q_pts[3]);
+                let intD = 360 - intA - intB - intC;
+                let vals = [intA, intB, intC, intD]; let xIdx = rand(0, 3);
+                currentAnswer = vals[xIdx].toString(); window.quad_labels = vals.map((v, i) => i === xIdx ? 'x°' : v + '°');
+                workingSteps = `360° - ${vals.filter((v,i)=>i!==xIdx).join('° - ')}° = ${currentAnswer}°`;
+            }
+            let V0 = rot(window.q_pts[0], cx, cy, tilt), V1 = rot(window.q_pts[1], cx, cy, tilt);
+            let V2 = rot(window.q_pts[2], cx, cy, tilt), V3 = rot(window.q_pts[3], cx, cy, tilt);
+            drawLine(dCtx, V0, V1); drawLine(dCtx, V1, V2); drawLine(dCtx, V2, V3); drawLine(dCtx, V3, V0);
+            drawAngleLabel(dCtx, V0, V3, V1, window.quad_labels[0], 25, false); drawAngleLabel(dCtx, V1, V0, V2, window.quad_labels[1], 25, false); 
+            drawAngleLabel(dCtx, V2, V1, V3, window.quad_labels[2], 25, false); drawAngleLabel(dCtx, V3, V2, V0, window.quad_labels[3], 25, false);
+        }
+        else if (topic === "Alternate" || topic === "Corresponding" || topic === "Interior") {
+            if(!isResize) {
+                window.par_layout = rand(1, 4);
+                window.par_acute = rand(50, 75); window.par_obtuse = 180 - window.par_acute;
+                
+                if (topic === "Interior") {
+                    let xIdx = rand(0, 1); 
+                    currentAnswer = (xIdx === 0 ? window.par_acute : window.par_obtuse).toString();
+                    window.par_labels = [window.par_acute + '°', window.par_obtuse + '°']; 
+                    window.par_labels[xIdx] = 'x°';
+                    let knownVal = (xIdx === 0 ? window.par_obtuse : window.par_acute);
+                    workingSteps = `180° - ${knownVal}° = ${currentAnswer}° (Interior angles)`;
+                } else {
+                    let isAcuteAns = Math.random() > 0.5;
+                    let ansVal = isAcuteAns ? window.par_acute : window.par_obtuse; 
+                    currentAnswer = ansVal.toString();
+                    window.par_labels = [ansVal+'°', 'x°']; if(Math.random() > 0.5) window.par_labels.reverse();
+                    workingSteps = `x = ${ansVal}° (${topic} angles)`;
+                }
+            }
+            
+            let rad = window.par_acute * Math.PI/180;
+            let dist = 120; 
+            let LT = rot({x:cx-180,y:cy-dist/2},cx,cy,tilt), RT = rot({x:cx+180,y:cy-dist/2},cx,cy,tilt);
+            let LB = rot({x:cx-180,y:cy+dist/2},cx,cy,tilt), RB = rot({x:cx+180,y:cy+dist/2},cx,cy,tilt);
+            let dx = (dist/2) / Math.tan(rad);
+            let TT = rot({x: cx + dx + 60/Math.tan(rad), y: cy - dist/2 - 60}, cx, cy, tilt);
+            let TB = rot({x: cx - dx - 60/Math.tan(rad), y: cy + dist/2 + 60}, cx, cy, tilt);
+            let IT = rot({x: cx + dx, y: cy - dist/2}, cx, cy, tilt);
+            let IB = rot({x: cx - dx, y: cy + dist/2}, cx, cy, tilt);
+            
+            drawLine(dCtx, LT, RT); drawLine(dCtx, LB, RB); drawLine(dCtx, TT, TB);
+            
+            let angTop = Math.atan2(RT.y - LT.y, RT.x - LT.x);
+            let angBot = Math.atan2(RB.y - LB.y, RB.x - LB.x);
+            // FAR LEFT parallel marks so they don't get overlapped by transversal
+            drawParallelMark(dCtx, rot({x:cx-150,y:cy-dist/2},cx,cy,tilt), angTop); 
+            drawParallelMark(dCtx, rot({x:cx-150,y:cy+dist/2},cx,cy,tilt), angBot);
+
+            let l1 = window.par_labels[0], l2 = window.par_labels[1];
+            let isAcute = (currentAnswer == window.par_acute);
+            
+            if (topic === "Alternate") {
+                if (isAcute) {
+                    if(window.par_layout%2===0) { drawAngleLabel(dCtx, IT, LT, IB, l1, 30, false); drawAngleLabel(dCtx, IB, RB, IT, l2, 30, false); }
+                    else { drawAngleLabel(dCtx, IT, LT, IB, l2, 30, false); drawAngleLabel(dCtx, IB, RB, IT, l1, 30, false); }
+                } else {
+                    if(window.par_layout%2===0) { drawAngleLabel(dCtx, IT, RT, IB, l1, 30, false); drawAngleLabel(dCtx, IB, LB, IT, l2, 30, false); }
+                    else { drawAngleLabel(dCtx, IT, RT, IB, l2, 30, false); drawAngleLabel(dCtx, IB, LB, IT, l1, 30, false); }
+                }
+            } else if (topic === "Corresponding") {
+                if (isAcute) {
+                    if(window.par_layout%2===0) { drawAngleLabel(dCtx, IT, RT, TT, l1, 30, false); drawAngleLabel(dCtx, IB, RB, IT, l2, 30, false); }
+                    else { drawAngleLabel(dCtx, IT, LT, IB, l1, 30, false); drawAngleLabel(dCtx, IB, LB, TB, l2, 30, false); }
+                } else {
+                    if(window.par_layout%2===0) { drawAngleLabel(dCtx, IT, LT, TT, l1, 30, false); drawAngleLabel(dCtx, IB, LB, IT, l2, 30, false); }
+                    else { drawAngleLabel(dCtx, IT, RT, IB, l1, 30, false); drawAngleLabel(dCtx, IB, RB, TB, l2, 30, false); }
+                }
+            } else if (topic === "Interior") {
+                if(window.par_layout%2===0) { 
+                    drawAngleLabel(dCtx, IT, LT, IB, l1, 30, false); drawAngleLabel(dCtx, IB, LB, IT, l2, 30, false);
+                } else {
+                    drawAngleLabel(dCtx, IT, RT, IB, l2, 30, false); drawAngleLabel(dCtx, IB, RB, IT, l1, 30, false);
+                }
+            }
+        }
+        else if (topic === "Straight Line") {
+            if(!isResize) {
+                window.sl_type = rand(1, 2);
+                if (window.sl_type === 1) {
+                    window.sl_a1 = rand(30, 120); let a2 = 180 - window.sl_a1; let vals = [window.sl_a1, a2]; let xIdx = rand(0, 1);
+                    currentAnswer = vals[xIdx].toString(); window.sl_labels = vals.map((v, i) => i === xIdx ? 'x°' : v + '°');
+                    workingSteps = `180° - ${vals[1-xIdx]}° = ${currentAnswer}°`;
+                } else {
+                    window.sl_a1 = rand(30, 80); window.sl_a2 = rand(30, 80); let a3 = 180 - window.sl_a1 - window.sl_a2; 
+                    let vals = [window.sl_a1, window.sl_a2, a3]; let xIdx = rand(0, 2);
+                    currentAnswer = vals[xIdx].toString(); window.sl_labels = vals.map((v, i) => i === xIdx ? 'x°' : v + '°');
+                    workingSteps = `180° - ${vals.filter((v,i)=>i!==xIdx).join('° - ')}° = ${currentAnswer}°`;
+                }
+            }
+            let V = rot({x: cx, y: cy + 40}, cx, cy, tilt), PL = rot({x: cx - 180, y: cy + 40}, cx, cy, tilt), PR = rot({x: cx + 180, y: cy + 40}, cx, cy, tilt);
+            drawLine(dCtx, PL, PR);
+            
+            if (window.sl_type === 1) {
+                let rad = window.sl_a1 * Math.PI / 180;
+                let PRay = rot({x: cx + 150*Math.cos(Math.PI - rad), y: cy+40 - 150*Math.sin(Math.PI - rad)}, cx, cy, tilt);
+                drawLine(dCtx, V, PRay);
+                drawAngleLabel(dCtx, V, PL, PRay, window.sl_labels[0], 35, false); 
+                drawAngleLabel(dCtx, V, PRay, PR, window.sl_labels[1], 35, false); 
+            } else {
+                let rad1 = window.sl_a1 * Math.PI / 180;
+                let rad2 = (window.sl_a1 + window.sl_a2) * Math.PI / 180;
+                let PRay1 = rot({x: cx + 150*Math.cos(Math.PI - rad1), y: cy+40 - 150*Math.sin(Math.PI - rad1)}, cx, cy, tilt);
+                let PRay2 = rot({x: cx + 150*Math.cos(Math.PI - rad2), y: cy+40 - 150*Math.sin(Math.PI - rad2)}, cx, cy, tilt);
+                drawLine(dCtx, V, PRay1); drawLine(dCtx, V, PRay2);
+                drawAngleLabel(dCtx, V, PL, PRay1, window.sl_labels[0], 35, false); 
+                drawAngleLabel(dCtx, V, PRay1, PRay2, window.sl_labels[1], 35, false); 
+                drawAngleLabel(dCtx, V, PRay2, PR, window.sl_labels[2], 35, false); 
+            }
+        }
+        else if (topic === "At a Point") {
+            if(!isResize) {
+                window.pt_type = rand(1, 3);
+                if (window.pt_type === 1) {
+                    window.pt_a1 = rand(40, 150); let a2 = 360 - window.pt_a1;
+                    let vals = [window.pt_a1, a2]; let xIdx = rand(0, 1);
+                    currentAnswer = vals[xIdx].toString(); window.pt_labels = vals.map((v, i) => i === xIdx ? 'x°' : v + '°');
+                    workingSteps = `360° - ${vals[1-xIdx]}° = ${currentAnswer}°`; window.pt_isReflex = [false, true];
+                } else if (window.pt_type === 2) {
+                    window.pt_a1 = rand(80, 140); window.pt_a2 = rand(80, 140); let a3 = 360 - window.pt_a1 - window.pt_a2; 
+                    let vals = [window.pt_a1, window.pt_a2, a3]; let xIdx = rand(0, 2);
+                    currentAnswer = vals[xIdx].toString(); window.pt_labels = vals.map((v, i) => i === xIdx ? 'x°' : v + '°');
+                    workingSteps = `360° - ${vals.filter((v,i)=>i!==xIdx).join('° - ')}° = ${currentAnswer}°`;
+                    window.pt_isReflex = [false, false, false]; if(a3 > 180) window.pt_isReflex[2] = true;
+                } else {
+                    window.pt_a1 = rand(60, 100); window.pt_a2 = rand(60, 100); window.pt_a3 = rand(60, 100); let a4 = 360 - window.pt_a1 - window.pt_a2 - window.pt_a3;
+                    let vals = [window.pt_a1, window.pt_a2, window.pt_a3, a4]; let xIdx = rand(0, 3);
+                    currentAnswer = vals[xIdx].toString(); window.pt_labels = vals.map((v, i) => i === xIdx ? 'x°' : v + '°');
+                    workingSteps = `360° - ${vals.filter((v,i)=>i!==xIdx).join('° - ')}° = ${currentAnswer}°`;
+                    window.pt_isReflex = [false, false, false, false];
+                }
+            }
+            let V = {x: cx, y: cy}; 
+            if (window.pt_type === 1) {
+                let r1 = window.pt_a1 * Math.PI/180;
+                let P1 = rot({x: cx + 140, y: cy}, cx, cy, tilt), P2 = rot({x: cx + 140*Math.cos(r1), y: cy + 140*Math.sin(r1)}, cx, cy, tilt);
+                drawLine(dCtx, V, P1); drawLine(dCtx, V, P2);
+                drawAngleLabel(dCtx, V, P1, P2, window.pt_labels[0], 35, window.pt_isReflex[0]);
+                drawAngleLabel(dCtx, V, P2, P1, window.pt_labels[1], 35, window.pt_isReflex[1]);
+            } else if (window.pt_type === 2) {
+                let r2 = window.pt_a1 * Math.PI/180; let r3 = (window.pt_a1 + window.pt_a2) * Math.PI/180;
+                let P1 = rot({x: cx + 140, y: cy}, cx, cy, tilt), P2 = rot({x: cx + 140*Math.cos(r2), y: cy + 140*Math.sin(r2)}, cx, cy, tilt), P3 = rot({x: cx + 140*Math.cos(r3), y: cy + 140*Math.sin(r3)}, cx, cy, tilt);
+                drawLine(dCtx, V, P1); drawLine(dCtx, V, P2); drawLine(dCtx, V, P3);
+                drawAngleLabel(dCtx, V, P1, P2, window.pt_labels[0], 25, window.pt_isReflex[0]); 
+                drawAngleLabel(dCtx, V, P2, P3, window.pt_labels[1], 25, window.pt_isReflex[1]); 
+                drawAngleLabel(dCtx, V, P3, P1, window.pt_labels[2], 25, window.pt_isReflex[2]);
+            } else {
+                let r2 = window.pt_a1 * Math.PI/180; let r3 = (window.pt_a1 + window.pt_a2) * Math.PI/180; let r4 = (window.pt_a1 + window.pt_a2 + window.pt_a3) * Math.PI/180;
+                let P1 = rot({x: cx + 140, y: cy}, cx, cy, tilt);
+                let P2 = rot({x: cx + 140*Math.cos(r2), y: cy + 140*Math.sin(r2)}, cx, cy, tilt);
+                let P3 = rot({x: cx + 140*Math.cos(r3), y: cy + 140*Math.sin(r3)}, cx, cy, tilt);
+                let P4 = rot({x: cx + 140*Math.cos(r4), y: cy + 140*Math.sin(r4)}, cx, cy, tilt);
+                drawLine(dCtx, V, P1); drawLine(dCtx, V, P2); drawLine(dCtx, V, P3); drawLine(dCtx, V, P4);
+                drawAngleLabel(dCtx, V, P1, P2, window.pt_labels[0], 30, window.pt_isReflex[0]); 
+                drawAngleLabel(dCtx, V, P2, P3, window.pt_labels[1], 30, window.pt_isReflex[1]); 
+                drawAngleLabel(dCtx, V, P3, P4, window.pt_labels[2], 30, window.pt_isReflex[2]); 
+                drawAngleLabel(dCtx, V, P4, P1, window.pt_labels[3], 30, window.pt_isReflex[3]);
+            }
+        }
+        else if (topic === "Vert. Opposite") {
+            if(!isResize) {
+                window.vo_a1 = rand(30, 80); let a2 = 180 - window.vo_a1; let isAcute = Math.random() > 0.5;
+                let targetAngle = isAcute ? window.vo_a1 : a2; currentAnswer = targetAngle.toString();
+                window.vo_labels = [targetAngle + '°', 'x°']; workingSteps = `x = ${targetAngle}°`;
+            }
+            let rad = window.vo_a1 * Math.PI / 180; let V = {x: cx, y: cy};
+            let P1 = rot({x: cx - 150, y: cy}, cx, cy, tilt), P2 = rot({x: cx + 150, y: cy}, cx, cy, tilt);
+            let P3 = rot({x: cx + 150*Math.cos(rad), y: cy - 150*Math.sin(rad)}, cx, cy, tilt), P4 = rot({x: cx - 150*Math.cos(rad), y: cy + 150*Math.sin(rad)}, cx, cy, tilt);
+            drawLine(dCtx, P1, P2); drawLine(dCtx, P3, P4);
+            let isAcute = window.vo_labels[0].replace('°','') < 90;
+            if (isAcute) { drawAngleLabel(dCtx, V, P4, P1, window.vo_labels[0], 35, false); drawAngleLabel(dCtx, V, P3, P2, window.vo_labels[1], 35, false); } 
+            else { drawAngleLabel(dCtx, V, P1, P3, window.vo_labels[0], 35, false); drawAngleLabel(dCtx, V, P2, P4, window.vo_labels[1], 35, false); }
+        }
+        else if (topic === "Triangle") {
+            if(!isResize) {
+                window.triType = rand(1, 4); 
+                if (window.triType === 1) {
+                    window.tri_A = rand(40, 80); window.tri_B = rand(40, 80); let a3 = 180 - window.tri_A - window.tri_B; 
+                    let vals = [window.tri_A, window.tri_B, a3]; let xIdx = rand(0, 2);
+                    currentAnswer = vals[xIdx].toString(); window.tri_labels = vals.map((v, i) => i === xIdx ? 'x°' : v + '°');
+                    workingSteps = `180° - ${vals.filter((v,i)=>i!==xIdx).join('° - ')}° = ${currentAnswer}°`;
+                } else if (window.triType === 2) {
+                    window.tri_A = 90; window.tri_B = rand(30, 60); let a3 = 90 - window.tri_B; 
+                    let vals = [90, window.tri_B, a3]; let xIdx = rand(1, 2);
+                    currentAnswer = vals[xIdx].toString(); window.tri_labels = vals.map((v, i) => i === xIdx ? 'x°' : (i===0 ? 'RIGHT' : v + '°'));
+                    workingSteps = `180° - 90° - ${vals[3-xIdx]}° = ${currentAnswer}°`;
+                } else if (window.triType === 3) {
+                    window.tri_A = rand(40, 70); window.tri_B = window.tri_A; let top = 180 - (window.tri_A * 2);
+                    if(Math.random() > 0.5) { currentAnswer = window.tri_A.toString(); window.tri_labels = [top+'°', 'x°', '']; workingSteps = `x = (180° - ${top}°) / 2 = ${currentAnswer}°`; } 
+                    else { currentAnswer = top.toString(); window.tri_labels = ['x°', window.tri_A+'°', '']; workingSteps = `x = 180° - 2(${window.tri_A}°) = ${currentAnswer}°`; }
+                } else if (window.triType === 4) {
+                    window.tri_A = 60; window.tri_B = 60; currentAnswer = "60"; window.tri_labels = ['x°', '', ''];
+                    workingSteps = `x = 180° / 3 = 60°`;
+                }
+            }
+            let L = 260; let rA = window.tri_A * Math.PI/180, rB = window.tri_B * Math.PI/180;
+            let VA = rot({x: cx - L/2, y: cy + 80}, cx, cy, tilt), VB = rot({x: cx + L/2, y: cy + 80}, cx, cy, tilt);
+            let sideB = L * Math.sin(rB) / Math.sin(Math.PI - rA - rB);
+            let VC_x = cx - L/2 + sideB * Math.cos(rA); let VC_y = cy + 80 - sideB * Math.sin(rA);
+            if(VC_y < cy - 140) { let scale = 220 / (cy + 80 - VC_y); L *= scale; VA = rot({x: cx - L/2, y: cy + 80}, cx, cy, tilt); VB = rot({x: cx + L/2, y: cy + 80}, cx, cy, tilt); sideB = L * Math.sin(rB) / Math.sin(Math.PI - rA - rB); VC_x = cx - L/2 + sideB * Math.cos(rA); VC_y = cy + 80 - sideB * Math.sin(rA); }
+            let VC = rot({x: VC_x, y: VC_y}, cx, cy, tilt);
+            drawLine(dCtx, VA, VB); drawLine(dCtx, VB, VC); drawLine(dCtx, VC, VA);
+            if (window.triType === 2) { drawRightAngle(dCtx, VA, VB, VC, 25); drawAngleLabel(dCtx, VB, VA, VC, window.tri_labels[1], 35, false); drawAngleLabel(dCtx, VC, VB, VA, window.tri_labels[2], 30, false); } 
+            else { drawAngleLabel(dCtx, VC, VB, VA, window.tri_labels[0], 30, false); drawAngleLabel(dCtx, VA, VC, VB, window.tri_labels[1], 30, false); drawAngleLabel(dCtx, VB, VA, VC, window.tri_labels[2], 30, false); if (window.triType === 3 || window.triType === 4) { let m1 = rot({x: cx - L/2 + (VC_x - (cx-L/2))/2, y: cy + 80 - (sideB*Math.sin(rA))/2}, cx, cy, tilt); let sideA = L * Math.sin(rA) / Math.sin(Math.PI - rA - rB); let m2 = rot({x: cx + L/2 - (sideA*Math.cos(rB))/2, y: cy + 80 - (sideA*Math.sin(rB))/2}, cx, cy, tilt); drawTickMark(dCtx, m1, Math.atan2(VC.y - VA.y, VC.x - VA.x)); drawTickMark(dCtx, m2, Math.atan2(VC.y - VB.y, VC.x - VB.x)); if (window.triType === 4) { let m3 = rot({x: cx, y: cy + 80}, cx, cy, tilt); drawTickMark(dCtx, m3, Math.atan2(VB.y - VA.y, VB.x - VA.x)); } } }
+        }
+        else if (topic === "Types of Angles") {
+            if(!isResize) {
+                const types = ["Acute", "Right", "Obtuse", "Reflex"]; currentAnswer = types[Math.floor(Math.random() * types.length)];
+                workingSteps = `This angle is ${currentAnswer}.`;
+                window.toaAngle = (currentAnswer === "Acute" ? rand(30, 60) : currentAnswer === "Right" ? 90 : currentAnswer === "Obtuse" ? rand(120, 150) : rand(220, 300)) * (Math.PI / 180);
+            }
+            document.getElementById('question-text-area').innerHTML = `What type of angle is shown?`;
+            let rad = window.toaAngle;
+            let V = {x: cx, y: cy}, P1 = rot({x: cx+120, y: cy}, cx, cy, tilt), P2 = rot({x: cx + Math.cos(-rad)*120, y: cy + Math.sin(-rad)*120}, cx, cy, tilt);
+            drawLine(dCtx, V, P1); drawLine(dCtx, V, P2);
+            if (currentAnswer === "Right") { drawRightAngle(dCtx, V, P1, P2, 25); } 
+            else { 
+                let isReflex = currentAnswer === "Reflex";
+                drawAngleLabel(dCtx, V, P1, P2, ' ', 35, isReflex);
+            }
+        }
+    }
+
+    // --- KEYPAD & LOGIC (WITH CHEAT CODE 3005) ---
+    const display = document.getElementById('input-display');
+    document.querySelectorAll('.key:not(.action):not(.submit)').forEach(btn => { 
+        btn.addEventListener('click', (e) => { 
+            e.preventDefault(); 
+            if (display.innerText === '?') display.innerText = ''; 
+            if (display.innerText.length < 4) display.innerText += btn.innerText; 
+            
+            if (display.innerText === '3005' && !isBlackBeltMode) {
+                display.innerText = '?'; correctCount = 25; updateBeltUI(); 
+                document.getElementById('screen-question').style.display = 'none';
+                document.getElementById('screen-wheel').style.display = 'flex';
+            }
+        }); 
+    });
+    document.getElementById('btn-del').addEventListener('click', (e) => { e.preventDefault(); if (display.innerText !== '?') { display.innerText = display.innerText.slice(0, -1); if (display.innerText === '') display.innerText = '?'; }});
+    document.getElementById('btn-clr').addEventListener('click', (e) => { e.preventDefault(); display.innerText = '?'; });
+    document.querySelectorAll('.mcq-btn').forEach(btn => { btn.addEventListener('click', (e) => { e.preventDefault(); display.innerText = btn.getAttribute('data-val'); checkAnswer(display.innerText); }); });
+    document.getElementById('btn-submit').addEventListener('click', (e) => { e.preventDefault(); if (display.innerText !== '?') checkAnswer(display.innerText); });
+    document.getElementById('btn-return').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('screen-question').style.display = 'none'; document.getElementById('screen-wheel').style.display = 'flex'; });
+
+    function checkAnswer(input) {
+        const feedback = document.getElementById('feedback-area');
+        if (input === currentAnswer) {
+            feedback.style.color = '#2ecc71'; feedback.innerHTML = "Correct! 🌟";
+            correctCount++; updateBeltUI(); finishQuestion();
+        } else {
+            attempts++;
+            if (attempts >= 2) { feedback.style.color = '#e74c3c'; feedback.innerHTML = `Wrong. Answer: <b>${currentAnswer}</b>. <br><i>${workingSteps}</i>`; finishQuestion(); } 
+            else { feedback.style.color = '#e67e22'; feedback.innerHTML = "Incorrect! Try again. (1 attempt left)"; if (!isMCQ) display.innerText = '?'; }
+        }
+    }
+    function finishQuestion() { document.getElementById('keyboard').style.display = 'none'; document.getElementById('mcq-keyboard').style.display = 'none'; document.getElementById('btn-return').style.display = 'block'; }
+
+    // --- STYLUS ANNOTATION ---
+    const drawCtx = drawCanvas.getContext('2d'); let isDrawing = false, mode = 'pen'; 
+    document.getElementById('btn-pen').addEventListener('click', function(e) { e.preventDefault(); mode = 'pen'; this.classList.add('active'); document.getElementById('btn-erase').classList.remove('active'); });
+    document.getElementById('btn-erase').addEventListener('click', function(e) { e.preventDefault(); mode = 'erase'; this.classList.add('active'); document.getElementById('btn-pen').classList.remove('active'); });
+
+    function getPos(e) { const rect = drawCanvas.getBoundingClientRect(); let cX = e.clientX, cY = e.clientY; if (e.touches && e.touches.length > 0) { cX = e.touches[0].clientX; cY = e.touches[0].clientY; } return { x: cX - rect.left, y: cY - rect.top }; }
+    function startDraw(e) { e.preventDefault(); isDrawing = true; const p = getPos(e); drawCtx.beginPath(); drawCtx.moveTo(p.x, p.y); }
+    function draw(e) { e.preventDefault(); if (!isDrawing) return; const p = getPos(e); drawCtx.lineTo(p.x, p.y); if (mode === 'pen') { drawCtx.globalCompositeOperation = "source-over"; drawCtx.strokeStyle = "rgba(41, 128, 185, 0.8)"; drawCtx.lineWidth = 3; drawCtx.lineCap = "round"; drawCtx.lineJoin = "round"; drawCtx.stroke(); } else { drawCtx.globalCompositeOperation = "destination-out"; drawCtx.lineWidth = 30; drawCtx.stroke(); } }
+    function endDraw(e) { e.preventDefault(); isDrawing = false; drawCtx.beginPath(); }
+    drawCanvas.addEventListener('touchstart', startDraw, { passive: false }); drawCanvas.addEventListener('touchmove', draw, { passive: false }); drawCanvas.addEventListener('touchend', endDraw, { passive: false }); drawCanvas.addEventListener('touchcancel', endDraw, { passive: false });
+    drawCanvas.addEventListener('mousedown', startDraw); drawCanvas.addEventListener('mousemove', draw); drawCanvas.addEventListener('mouseup', endDraw); drawCanvas.addEventListener('mouseout', endDraw);
+
+    // --- CERTIFICATE ---
+    document.getElementById('generate-cert-btn').addEventListener('click', () => {
+        let sName = document.getElementById('student-name-input').value.trim();
+        if(!sName) sName = "Geometry Student";
+        const cCanv = document.getElementById('certCanvas'); const cx = cCanv.getContext('2d');
+        cx.fillStyle = "#ecf0f1"; cx.fillRect(0,0,800,600);
+        cx.lineWidth = 15; cx.strokeStyle = "#f39c12"; cx.strokeRect(20,20,760,560);
+        cx.lineWidth = 5; cx.strokeStyle = "#2c3e50"; cx.strokeRect(30,30,740,540);
+        cx.beginPath(); cx.arc(400, 100, 40, 0, Math.PI*2); cx.fillStyle = "#f1c40f"; cx.fill(); cx.stroke();
+        cx.textAlign = "center"; cx.fillStyle = "#2c3e50"; cx.font = "bold 50px Georgia, serif"; cx.fillText("CERTIFICATE OF MASTERY", 400, 200);
+        cx.font = "italic 24px Georgia, serif"; cx.fillText("This certifies that", 400, 260);
+        cx.font = "bold 45px Arial, sans-serif"; cx.fillStyle = "#e74c3c"; cx.fillText(sName, 400, 330);
+        cx.beginPath(); cx.moveTo(200, 340); cx.lineTo(600, 340); cx.lineWidth=2; cx.stroke();
+        cx.fillStyle = "#2c3e50"; cx.font = "italic 24px Georgia, serif"; cx.fillText("has successfully completed all challenges and is a", 400, 390);
+        cx.font = "bold 35px Georgia, serif"; cx.fillText("MASTER OF GEOMETRY", 400, 440);
+        let dateStr = new Date().toLocaleDateString(); cx.font = "20px Arial"; cx.fillText("Date: " + dateStr, 400, 520);
+        
+        let dataURL = cCanv.toDataURL("image/png");
+        document.getElementById('rendered-cert').src = dataURL; document.getElementById('download-cert').href = dataURL;
+        let subject = encodeURIComponent("Master of Geometry Certificate");
+        let body = encodeURIComponent(`Hi!\n\nI just completed all the math challenges and reached Master of Geometry!\n\nName: ${sName}\nDate: ${dateStr}\n\n(See the attached certificate image)`);
+        document.getElementById('email-cert').href = `mailto:?subject=${subject}&body=${body}`;
+        document.getElementById('cert-step-1').style.display = 'none'; document.getElementById('cert-step-2').style.display = 'block';
+    });
+    document.getElementById('email-cert').addEventListener('click', (e) => { document.getElementById('download-cert').click(); alert("Your web browser cannot attach files automatically. Your certificate has been downloaded to your device. Please manually ATTACH the image to the email that is about to open!"); });
+</script>
+</body>
+</html>
